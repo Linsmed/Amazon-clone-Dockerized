@@ -1,53 +1,57 @@
 pipeline {
     agent any 
 
-     options {
+    options {
         timeout(time: 10, unit: 'MINUTES')
-     }
-    environment {
-    DOCKERHUB_CREDENTIALS = credentials('ibraheem-docker')
-    APP_NAME = "linsmedtech/amazon"
     }
+
+    environment {
+        APP_NAME = "linsmedtech/amazon"
+    }
+
     stages { 
         stage('SCM Checkout') {
-            steps{
-           git branch: 'main', url: 'https://github.com/Linsmed/Amazon-clone-Dockerized.git'
+            steps {
+                git branch: 'main', url: 'https://github.com/Linsmed/Amazon-clone-Dockerized.git'
             }
         }
-      
-        }
-        stage('login to dockerhub') {
-            steps{
-                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+
+        stage('Login to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'ibraheem-docker', usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
+                    sh 'echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin'
+                }
             }
         }
-        stage('Build docker image') {
+
+        stage('Build Docker Image') {
             steps {  
                 sh 'docker build -t $APP_NAME:$BUILD_NUMBER .'
             }
         }
+
         stage('Trivy Scan (Aqua)') {
             steps {
                 sh 'trivy image $APP_NAME:$BUILD_NUMBER'
             }
-       }
-        stage('push image') {
-            steps{
+        }
+
+        stage('Push Image') {
+            steps {
                 sh 'docker push $APP_NAME:$BUILD_NUMBER'
             }
         }
-        stage('Trigger ManifestUpdate') {
-             steps{
-                build job: 'argocd-manifest-amazon', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]     
 
+        stage('Trigger ManifestUpdate') {
+            steps {
+                build job: 'argocd-manifest-amazon', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]     
             } 
-           } 
         }
+    }
+
     post { 
         always { 
-           //slackSend message: 'Pipeline completed - Build deployed successfully '
-           slackSend color: "good", message: "Build Deployed Successfully, Downstream Job Triggered"
-           }
+            slackSend color: "good", message: "Build Deployed Successfully, Downstream Job Triggered"
+        }
     }
 }
-
