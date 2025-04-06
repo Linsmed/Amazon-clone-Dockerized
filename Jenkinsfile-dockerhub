@@ -49,3 +49,4 @@ pipeline {
            slackSend color: "good", message: "Build Deployed Successfully, Downstream Job Triggered"
            }
     }
+}
