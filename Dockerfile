@@ -1,20 +1,14 @@
-FROM node:lts-buster-slim
-
-# Set environment
-ARG NODE_ENV=production
+FROM node:lts-buster-slim 
+ARG NODE_ENV=productions
 ENV NODE_ENV=${NODE_ENV}
 
-# Set working directory
 WORKDIR /usr/src/app
 
-# Copy dependency files
-COPY package.json package-lock.json ./
+COPY package.json .
+COPY yarn.lock .
 
-# Install dependencies
-RUN npm ci --only=production
+RUN yarn install 
 
-# Copy the rest of the app
-COPY . .
+COPY . . 
 
-# Start the app
-CMD ["npm", "start"]
+CMD ["yarn", "start"]
