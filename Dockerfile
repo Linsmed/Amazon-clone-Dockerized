@@ -1,14 +1,17 @@
-FROM node:lts-buster-slim 
-ARG NODE_ENV=productions
-ENV NODE_ENV=${NODE_ENV}
+FROM node:lts-buster-slim
+
+ARG NODE_ENV=production
+ENV NODE_ENV=$NODE_ENV
+
+# Install yarn globally
+RUN npm install -g yarn@1.22.19
 
 WORKDIR /usr/src/app
 
-COPY package.json .
-COPY yarn.lock .
+COPY package.json yarn.lock ./
 
-RUN yarn install 
+RUN yarn install --frozen-lockfile
 
-COPY . . 
+COPY . .
 
 CMD ["yarn", "start"]
