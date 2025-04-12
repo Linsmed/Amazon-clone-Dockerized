@@ -7,7 +7,7 @@ WORKDIR /usr/src/app
 COPY package.json .
 COPY yarn.lock .
 
-RUN yarn install 
+RUN apt-get --assume-yes install yarn && apt-mark hold yarn 
 
 COPY . . 
 
