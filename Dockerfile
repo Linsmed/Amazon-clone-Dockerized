@@ -1,14 +1,24 @@
-FROM node:lts-buster-slim 
-ARG NODE_ENV=productions
-ENV NODE_ENV=${NODE_ENV}
+FROM node:lts-buster-slim
 
+# Set build argument and environment variable
+ARG NODE_ENV=production
+ENV NODE_ENV=$NODE_ENV
+
+# Set working directory
 WORKDIR /usr/src/app
 
+# Copy only package.json and package-lock.json initially
 COPY package.json .
-COPY yarn.lock .
+COPY package-lock.json .
 
-RUN apt-get --assume-yes install yarn && apt-mark hold yarn 
+# Install dependencies using npm
+RUN apt-get update && apt-get --assume-yes install ca-certificates \
+  && npm install --only=production \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
-COPY . . 
+# Copy the rest of the application code
+COPY . .
 
-CMD ["yarn", "start"]
+# Set the default command
+CMD ["npm", "start"]
