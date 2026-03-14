@@ -1,62 +1,57 @@
 pipeline {
     agent any 
 
-     options {
+    options {
         timeout(time: 10, unit: 'MINUTES')
-     }
-    environment {
-    DOCKERHUB_CREDENTIALS = credentials('linsmedtech-dockerhub')
-    APP_NAME = "linsmedtech/amazon2"
     }
+
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('linsmedtech-dockerhub')
+        APP_NAME = "linsmedtech/amazon2"
+    }
+
     stages { 
         stage('SCM Checkout') {
-            steps{
-           git branch: 'main', url: 'https://github.com/Linsmed/Amazon-clone-Dockerized.git'
-            }
-        }
-        // run sonarqube test
-        stage('Run Sonarqube') {
-            environment {
-                scannerHome = tool 'ibt-sonarqube';
-            }
             steps {
-              withSonarQubeEnv(credentialsId: 'ibt-sonar', installationName: 'IBT sonarqube') {
-                sh "${scannerHome}/bin/sonar-scanner"
-              }
+                git branch: 'main', url: 'https://github.com/Linsmed/Amazon-clone-Dockerized.git'
             }
         }
-        stage('login to dockerhub') {
-            steps{
+
+        stage('Login to DockerHub') {
+            steps {
                 sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
             }
         }
-        stage('Build docker image') {
+
+        stage('Build Docker Image') {
             steps {  
                 sh 'docker build -t $APP_NAME:$BUILD_NUMBER .'
             }
         }
+
         stage('Trivy Scan (Aqua)') {
             steps {
                 sh 'trivy image $APP_NAME:$BUILD_NUMBER'
             }
-       }
-        stage('push image') {
-            steps{
+        }
+
+        stage('Push Image') {
+            steps {
                 sh 'docker push $APP_NAME:$BUILD_NUMBER'
             }
         }
-        stage('Trigger ManifestUpdate') {
-             steps{
-                build job: 'argocd-manifest-amazon', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]     
 
+        stage('Trigger ManifestUpdate') {
+            steps {
+                build job: 'argocd-manifest-amazon', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
             } 
-           } 
-        }
+        } 
+    }
+
     post { 
         always { 
-           //slackSend message: 'Pipeline completed - Build deployed successfully '
-           slackSend color: "good", message: "Build Deployed Successfully, Downstream Job Triggered"
-           }
+            // Slack notification
+            slackSend color: "good", message: "Build Deployed Successfully, Downstream Job Triggered"
+        }
     }
 }
-
