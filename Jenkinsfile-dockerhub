@@ -1,5 +1,5 @@
 pipeline {
-    agent any 
+    agent any
 
     options {
         timeout(time: 10, unit: 'MINUTES')
@@ -10,41 +10,56 @@ pipeline {
         APP_NAME = "linsmedtech/amazon2"
     }
 
-    stages { 
-        stage('SCM Checkout') {
+    stages {
+
+        stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/Linsmed/Amazon-clone-Dockerized.git'
             }
         }
 
-        stage('Login to DockerHub') {
+        stage('Docker Login') {
             steps {
-                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+                sh '''
+                echo $DOCKERHUB_CREDENTIALS_PSW | docker login \
+                -u $DOCKERHUB_CREDENTIALS_USR \
+                --password-stdin
+                '''
             }
         }
 
         stage('Build Docker Image') {
-            steps {  
-                sh 'docker build -t $APP_NAME:$BUILD_NUMBER .'
+            steps {
+                sh '''
+                docker build -t $APP_NAME:$BUILD_NUMBER .
+                '''
             }
         }
 
-        stage('Trivy Scan (Aqua)') {
+        stage('Trivy Security Scan') {
             steps {
-                sh 'trivy image $APP_NAME:$BUILD_NUMBER'
+                sh '''
+                trivy image --exit-code 1 --severity HIGH,CRITICAL $APP_NAME:$BUILD_NUMBER
+                '''
             }
         }
 
-        stage('Push Image') {
+        stage('Push Image to DockerHub') {
             steps {
-                sh 'docker push $APP_NAME:$BUILD_NUMBER'
+                sh '''
+                docker push $APP_NAME:$BUILD_NUMBER
+                '''
             }
         }
 
-        stage('Trigger ManifestUpdate') {
+        stage('Trigger ArgoCD Manifest Update') {
             steps {
-                build job: 'argocd-manifest-amazon', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
-            } 
-        } 
+                build job: 'argocd-manifest-amazon',
+                parameters: [
+                    string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)
+                ]
+            }
+        }
+
     }
 }
